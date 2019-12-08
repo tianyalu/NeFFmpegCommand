@@ -1,0 +1,66 @@
+# NeFFmpegCommand FFmpeg命令详解（Windows)
+## 一、概念
+### 1.1 视频流处理架构
+![image](https://github.com/tianyalu/NeFFmpegCommand/blob/master/show/video_structure.png)
+### 1.2 渲染流程
+![image](https://github.com/tianyalu/NeFFmpegCommand/blob/master/show/rendering_process.png)
+
+## 二、准备工作
+* 到[http://ffmpeg.org/download.html](http://ffmpeg.org/download.html)下载FFmpeg Windows版本并解压  
+* 把解压路径`D:\CommonDev\FFmpeg\FFmpegWindows\ffmpeg-20191207-70e292b-win64-static\bin`添加到环境变量中
+
+## 三、FFmpeg常用命令
+### 3.1 FFmpeg录制命令
+`ffmpeg -f gdigrab -framerate 30 -offset_x 0 -offset_y 0 -video_size 1920*1080 -i desktop out.mpg`  
+> gdigrab：表明通过gdi抓屏的方式（mac下 avfoundation)  
+> -framerate 30：表示录制的帧率为30  
+> -offset_x：左上偏移量x  
+> -offset_y：左上偏移量y  
+> -video_size：需要录制的宽度和高度，这里录制的是整个屏幕  
+> -i：输入路径和名称以及格式mpg  
+> desktop：告诉FFmpeg我们录制的是屏幕，而不是一个窗口（可以录制一个窗口，不过得用窗口的ID）  
+`Ctrl + c` 取消录制命令  
+
+### 3.2 FFmpeg分解复用命令
+定义：将完整的视频文件进行拆分，将拆分的信息作为素材，合成所需要的新视频。  
+#### 3.2.1 抽取音频流
+`ffmpeg -i input.mp4 -acodec copy -vn out.aac`  
+> acodec：指定音频编码器，copy 指明只拷贝，不做编解码  
+> vn：v代表视频，n代码no也就是无视频的意思  
+#### 3.2.2 抽取视频流
+`ffmpeg -i input.mp4 -vcodec copy -an out.h264`  
+> vcodec：指定视频编码器，copy 指明只拷贝，不做编解码  
+> an：a代表音频，n代表no也就是无音频的意思  
+#### 3.2.3 合成视频
+`ffmpeg -i out.h264 -i out.aac -vcodec copy -acodec copy out.mp4`  
+
+### 3.3 FFmpeg处理原始数据命令
+定义：获取未经过编码的画面和音频。画面信息一般为yuv，音频信息为pcm。  
+#### 3.3.1 提取YUV数据
+`ffmpeg -i input.mp4 -an -c:v rawvideo -pix_fmt yuv420p out.yuv`  
+> -c:v rawvideo 指定将视频转成原始数据  
+> -pixel_format yuv420p 指定转换格式为yuv420p  
+未经过编码的数据需要用到ffplay播放：`ffplay -video_size 1920*1080 out.yuv`  
+**遗留问题：**  
+采用此种方式提取的视频源文件播放时速度明显加快很多，不知何故？  
+#### 3.3.2 提取PCM数据 
+`ffmpeg -i input.mp4 -vn -ar 44100 -ac 2 -f s16le out.pcm`  
+> -ar：指定音频采样率44100 即44.1KHz  
+> -ac：指定音频声道channel 2 为双声道  
+> -f：数据存储格式 s：Signed 有符号的；16：每一个数值用16位表示；l：little；e：end  
+未经过编码的数据需要用到ffplay播放：`ffplay -ar 44100 -ac 2 -f s16le out.pcm`  
+
+### 3.4 FFmpeg滤镜命令
+滤镜实现过程如下：  
+![image](https://github.com/tianyalu/NeFFmpegCommand/blob/master/show/ffmpeg_filter.png)
+
+#### 3.4.1 裁剪滤镜
+`ffmpeg -i input.mp4 -vf crop=in_w-200:in_h-200 -c:v libx264 -c:a copy crop.mp4`  
+> crop=in_w-200:in_h-200 裁剪视频后的宽高（这里是视频原本的宽高-200）  
+> -c:v libx264 通过libx264工具来进行编码  
+> -c:a copy 对音频直接进行拷贝
+#### 3.4.2 提取PCM数据
+`ffmpeg -i input.mp4 -vn -ar 44100 -ac 2 -f s16le out.pcm`
+
+### 3.5 格式转换命令
+`ffmpeg -i out.mp4 -vcodec copy -acodec copy out.flv`  
